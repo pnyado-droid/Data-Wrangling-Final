@@ -1,0 +1,244 @@
+---
+title: "House prices prediction"
+format: gfm
+execute: 
+  warning: false
+  message: false
+  errors: false
+jupyter: python3  
+---
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+```
+
+data = pd.read_csv('/Users/pridenyado/Downloads/Housing.csv')
+
+data.head() # display first few rows
+
+data.describe(include='all') # summary statistics
+
+print(data.isnull().sum()) # check for missing values
+
+data.info() # data types and non-null counts
+
+```{python}
+data = pd.read_csv('/Users/pridenyado/Downloads/Housing.csv')
+
+data.head() # display first few rows
+
+data.describe(include='all') # summary statistics
+
+print(data.isnull().sum()) # check for missing values
+
+data.info() # data types and non-null counts
+```
+
+
+## 1. How does house area relate to price?
+
+data['area']= data['area'].str.replace('\s$','',regex=True)
+
+# create area buckets
+bins = [0, 1500, 2500, float('inf')]
+labels = ['small', 'medium', 'large']
+
+#new categorical column that groups continuous area into size buckets.
+data['area_bucket'] = pd.cut(data['area'], bins=bins, labels=labels, right=False)
+
+# summary by bucket
+data.groupby('area_bucket')['price'].agg(['count', 'mean', 'min', 'max']).reset_index()
+
+#Now lets visualize the relationship between area and price
+fig = sns.regplot(data=data, x='area', y='price', scatter=True, lowess=True)
+plt.show()
+
+```{python}
+data['area']= data['area'].str.replace('\s$','',regex=True)
+
+bins = [0, 1500, 2500, float('inf')]
+labels = ['small', 'medium', 'large']
+
+#new categorical column that groups continuous area into size buckets.
+data['area_bucket'] = pd.cut(data['area'], bins=bins, labels=labels, right=False)
+
+data.groupby('area_bucket')['price'].agg(['count', 'mean', 'min', 'max']).reset_index()
+
+#Now lets visualize the relationship between area and price
+fig = sns.regplot(data=data, x='area', y='price', scatter=True, lowess=True)
+plt.show()
+
+```
+
+
+
+## 2. Do houses with more bedrooms tend to be more expensive?
+
+fig = sns.boxplot(data=data, x='bedrooms', y='price')
+plt.title('House Price Distribution by Number of Bedrooms')
+plt.show()
+
+data
+data.loc[0].T # inspect a row to check data types
+
+# summary statistics by number of bedrooms
+bedroom_summary = (data.groupby('bedrooms')['price'].agg(['count', 'mean', 'median', 'min', 'max']).reset_index()) 
+
+bedroom_summary
+
+## Simple regression model
+import statsmodels.api as sm
+
+bedroom_model = sm.formula.ols('price ~ bedrooms', data=data).fit() 
+bedroom_model.summary()
+
+
+```{python}
+fig = sns.boxplot(data=data, x='bedrooms', y='price')
+plt.title('House Price Distribution by Number of Bedrooms')
+plt.show()
+
+data
+data.loc[0].T # inspect a row to check data types
+
+bedroom_summary = (data.groupby('bedrooms')['price'].agg(['count', 'mean', 'median', 'min', 'max']).reset_index()) 
+
+bedroom_summary
+
+import statsmodels.api as sm
+
+bedroom_model = sm.formula.ols('price ~ bedrooms', data=data).fit() 
+bedroom_model.summary()
+
+```
+
+## 3. Are furnished houses more expensive than unfurnished ones, on average?
+
+# check unique values and clean furnishingstatus
+data['furnishingstatus'].value_counts()
+data['furnishingstatus'] = data['furnishingstatus'].str.lower().str.strip()
+data['furnishingstatus'].value_counts()
+
+#summarizing price by furnishing status
+furnish_summary = (data.groupby('furnishingstatus')['price'].agg(['count', 'mean', 'median']).reset_index())
+furnish_summary
+
+
+#regression model - furnished vs unfurnished
+furnish_model = sm.formula.ols('price ~ furnishingstatus', data=data).fit()
+furnish_model.summary()
+
+
+```{python}
+data['furnishingstatus'].value_counts()
+data['furnishingstatus'] = data['furnishingstatus'].str.lower().str.strip()
+data['furnishingstatus'].value_counts()
+
+#summarizing price by furnishing status
+furnish_summary = (data.groupby('furnishingstatus')['price'].agg(['count', 'mean', 'median']).reset_index())
+furnish_summary
+
+
+#regression model - furnished vs unfurnished
+furnish_model = sm.formula.ols('price ~ furnishingstatus', data=data).fit()
+furnish_model.summary()
+
+```
+
+## 4. Does being near a main road affect house price?
+
+data['price'] = pd.to_numeric(data['price'], errors='coerce')
+data['price_missing'] = data['price'].isna().astype(int)
+price_median = data['price'].median()
+data['price'] = data['price'].fillna(price_median)
+
+
+data['mainroad'] = data['mainroad'].str.lower().str.strip() #Convert price to a numeric type; anything non‑numeric (commas, text, bad values) becomes NaN.
+
+
+data['mainroad_missing'] = data['mainroad'].isna().astype(int)# 1 if price was missing, 0 otherwise
+data['mainroad'] = data['mainroad'].fillna('unknown') # Fill missing price with median price
+
+data['mainroad'] = data['mainroad'].str.lower().str.strip()# makes everything lowercase and removes leading/trailing spaces
+data['mainroad'].value_counts() # check cthat cleaning worked
+
+#subsetting to keep only rows where mainroad is clearly “yes” or “no”.
+data = data[data['mainroad'].isin(['yes', 'no'])]
+
+sns.boxplot(data=data, x='mainroad', y='price')
+plt.show()
+
+
+```{python}
+
+data['price'] = pd.to_numeric(data['price'], errors='coerce')
+data['price_missing'] = data['price'].isna().astype(int)
+price_median = data['price'].median()
+data['price'] = data['price'].fillna(price_median)
+
+
+data['mainroad'] = data['mainroad'].str.lower().str.strip() #Convert price to a numeric type; anything non‑numeric (commas, text, bad values) becomes NaN.
+
+
+data['mainroad_missing'] = data['mainroad'].isna().astype(int)# 1 if price was missing, 0 otherwise
+data['mainroad'] = data['mainroad'].fillna('unknown') # Fill missing price with median price
+
+data['mainroad'] = data['mainroad'].str.lower().str.strip()# makes everything lowercase and removes leading/trailing spaces
+data['mainroad'].value_counts() # check cthat cleaning worked
+
+#subsetting to keep only rows where mainroad is clearly “yes” or “no”.
+data = data[data['mainroad'].isin(['yes', 'no'])]
+
+sns.boxplot(data=data, x='mainroad', y='price')
+plt.show()
+
+```
+
+## 5. Which 2–3 features in the dataset seem most important for predicting price?
+# Clean mainroad
+data['mainroad'] = data['mainroad'].str.lower().str.strip()
+
+# Create the dummy column
+data['mainroad_yes'] = data['mainroad'].eq('yes').astype(int)
+
+# Now define the list and inspect dtypes
+housing_cols = ['price', 'area', 'bedrooms', 'bathrooms', 'stories', 'parking', 'mainroad_yes']
+
+data[housing_cols].dtypes
+
+
+# correlation with price
+correlation_with_price = (data[housing_cols] .corr()['price'].sort_values(ascending=False))
+
+correlation_with_price
+
+# heatmap of correlations
+sns.heatmap(data[housing_cols].corr(), annot=True,cmap='coolwarm')
+plt.show()
+
+
+```{python}
+data['mainroad'] = data['mainroad'].str.lower().str.strip()
+
+data['mainroad_yes'] = data['mainroad'].eq('yes').astype(int)
+
+housing_cols = ['price', 'area', 'bedrooms', 'bathrooms', 'stories', 'parking', 'mainroad_yes']
+
+data[housing_cols].dtypes
+
+correlation_with_price = (data[housing_cols] .corr()['price'].sort_values(ascending=False))
+
+correlation_with_price
+
+sns.heatmap(data[housing_cols].corr(), annot=True,cmap='coolwarm')
+plt.show()
+
+```
+
